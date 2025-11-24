@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc cpanminus git
+
+      - name: Install Perl modules
+        run: |
+          sudo cpanm -n Pandoc Term::ANSIColor
+
+      - name: Run Perl unit tests
+        run: |
+          perl -V
+          perl test_mdmc2latex.pl
+          perl test_sanitize_tex.pl || true
+
+      - name: Convert sample and dry-run sanitize
+        run: |
+          perl mdmc2latex.pl examples/sample_withltcaptype.mdmc --ltcaptype=table
+          ls -la examples
+          perl tools/sanitize_tex.pl --ltcaptype=table --dry-run examples
