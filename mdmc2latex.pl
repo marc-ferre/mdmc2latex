@@ -107,8 +107,8 @@ sub process_file {
             }
             else {
                 $q_into = 1;
-                my $custom_id = sanitize_id($1);
-                print $out_fh '\begin{questionmult}{' . $custom_id . '}', "\n";
+                my $question_id = 'Q' . sprintf('%02d', $q_id);
+                print $out_fh '\begin{questionmult}{' . $question_id . '}', "\n";
                 $questions_string .= $prequestion_string . "\n"
                   unless $prequestion_string eq '';
             }
@@ -302,16 +302,4 @@ sub print_success {
 
     my $avg_answers = $stats->{questions} > 0 ? sprintf("%.1f", $stats->{answers} / $stats->{questions}) : 0;
     print "  Moyenne par question: ", BLUE, $avg_answers, RESET, " réponses\n";
-}
-
-# Sanitize question ID for LaTeX compatibility
-sub sanitize_id {
-    my ($id) = @_;
-    # Remove non-alphanumeric characters
-    $id =~ s/[^a-zA-Z0-9]//g;
-    # Ensure it starts with a letter (LaTeX counters require this)
-    if ($id =~ /^[^a-zA-Z]/ || $id eq '') {
-        $id = 'Q' . $id;
-    }
-    return $id;
 }
