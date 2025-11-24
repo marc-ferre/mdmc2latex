@@ -33,3 +33,17 @@ jobs:
           perl mdmc2latex.pl examples/sample_withltcaptype.mdmc --ltcaptype=table
           ls -la examples
           perl tools/sanitize_tex.pl --ltcaptype=table --dry-run examples
+
+      - name: Run sanitize via mdmc2latex (--sanitize)
+        run: |
+          perl mdmc2latex.pl --sanitize --ltcaptype=table examples/sample_withltcaptype.mdmc
+          ls -la examples
+
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-french
+
+      - name: Compile generated sample with pdflatex
+        run: |
+          pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples examples/sample_withltcaptype.mdmc.tex

@@ -86,9 +86,28 @@ sub test_ltcaptype_option {
     isnt($exit_code, 0, "Invalid ltcaptype value should cause error exit");
 }
 
+sub test_sanitize_flag {
+    my $test_file = 'examples/sample_withltcaptype.mdmc';
+    my $output_file = 'examples/sample_withltcaptype.mdmc.tex';
+
+    # Run mdmc2latex with --sanitize and default ltcaptype
+    system("perl mdmc2latex.pl --sanitize --ltcaptype=table $test_file > /dev/null 2>&1");
+    my $exit_code = $? >> 8;
+    is($exit_code, 0, "Script executes successfully with --sanitize");
+    ok(-f $output_file, "Output file created by --sanitize");
+    ok(-f "$output_file.bak", "Backup file created by sanitizer (\*.tex.bak)");
+    open my $fh, '<', $output_file or die "Can't open $output_file: $!";
+    my $content = do { local $/; <$fh> };
+    close $fh;
+    like($content, qr/\\def\\LTcaptype\{table\}/, "Sanitizer kept/normalized LTcaptype to 'table'");
+    unlink $output_file if -f $output_file;
+    unlink "$output_file.bak" if -f "$output_file.bak";
+}
+
 # Run tests
 test_script_execution();
 test_error_handling();
 test_ltcaptype_option();
+test_sanitize_flag();
 
 done_testing();

@@ -14,12 +14,13 @@ my $prequestion_string   = '';
 my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
 my $a_bullet             = '   A.  ';
 
-my ( $q_first_id, $keep_md4docx, $help, $ltcaptype ) = ( '1', 0, 0, 'table' );
+my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize ) = ( '1', 0, 0, 'table', 0 );
 GetOptions(
     'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
     'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
     'help'  => \$help
     , 'ltcaptype=s' => \$ltcaptype
+    , 'sanitize' => \$sanitize
 );
 
 # Print help
@@ -66,6 +67,22 @@ check_pandoc();
 # Display success message with statistics
 print_success($latex_path, $stats);
 
+# Run sanitation if requested
+if ($sanitize) {
+    my $sanitizer = 'tools/sanitize_tex.pl';
+    if (-f $sanitizer) {
+        my $cmd = "perl $sanitizer --ltcaptype=$ltcaptype $latex_path";
+        print "Running sanitizer: $cmd\n";
+        my $rc = system($cmd);
+        if ($rc != 0) {
+            warn sprintf("Sanitizer returned non-zero exit code: %d\n", $rc >> 8);
+        }
+    }
+    else {
+        warn "Sanitizer script not found (tools/sanitize_tex.pl). Skipping sanitize.\n";
+    }
+}
+
 #################
 ### FUNCTIONS ###
 #################
@@ -76,7 +93,8 @@ sub print_usage {
     print "Options:\n";
     print "  --fid=i    First question number (default: 1, not implemented)\n";
     print "  --keep     Keep intermediate Markdown file (not implemented)\n";
-    print "  --ltcaptype=<table|figure|relax|none>  LTcaptype to use in generated LaTeX (default: relax). 'none' is equivalent to 'relax' and avoids incrementing a counter.\n";
+    print "  --ltcaptype=<table|figure|relax|none>  LTcaptype to use in generated LaTeX (default: table). 'none' is equivalent to 'relax' and avoids incrementing a counter.\n";
+    print "  --sanitize  Run tools/sanitize_tex.pl on the generated .tex file (in-place).\n";
     print "  --help     Show this help message\n";
 }
 
