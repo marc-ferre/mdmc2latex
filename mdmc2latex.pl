@@ -7,6 +7,7 @@ use File::Basename;
 use Pandoc qw(--wrap=none);    # check at first use
 use Pandoc 1.12;               # check at compile time
 Pandoc->require(1.12);         # check at run time
+use Term::ANSIColor qw(:constants);
 
 # Default strings (Markdown format)
 my $prequestion_string   = '';
@@ -46,7 +47,7 @@ print $out_fh format_comment(
   "\n\n";
 
 # Parse and process the file
-process_file($in_fh, $out_fh);
+my $stats = process_file($in_fh, $out_fh);
 
 close $in_fh;
 close $out_fh;
@@ -54,7 +55,8 @@ close $out_fh;
 # Convert with pandoc
 check_pandoc();
 
-print ">>> QCM file successfully converted to AMC-LaTeX file: $latex_path\n";
+# Display success message with statistics
+print_success($latex_path, $stats);
 
 #################
 ### FUNCTIONS ###
@@ -92,6 +94,7 @@ sub process_file {
     my $questions_string = '';
     my @answers_string   = ();
     my @answers_eval     = ();
+    my $stats = { questions => 0, answers => 0, correct => 0, incorrect => 0 };
 
     while ( my $line = <$in_fh> ) {
         chomp $line;
@@ -167,6 +170,17 @@ sub process_file {
                       . '\end{reponses}' . "\n"
                       . '\end{questionmult}' . "\n\n";
 
+                    # Update statistics
+                    $stats->{questions}++;
+                    $stats->{answers} += $num_answers;
+                    foreach my $eval (@answers_eval) {
+                        if ($eval eq '+') {
+                            $stats->{correct}++;
+                        } else {
+                            $stats->{incorrect}++;
+                        }
+                    }
+
                     @answers_string = ();
                     @answers_eval   = ();
                 }
@@ -183,6 +197,51 @@ sub process_file {
             error_exit("QCM formatting issue at question $q_id: unexpected condition");
         }
     }
+
+    # Process remaining question if any at end of file
+    if ($a_into) {
+        $a_into = 0;
+        $a_id   = 0;
+        my $num_answers = scalar(@answers_string);
+        if ( $num_answers < 2 || $num_answers > 4 ) {
+            error_exit("QCM formatting issue at question $q_id: between 2 and 4 answers expected, got $num_answers");
+        }
+        else {
+            # Print questions lines
+            print $out_fh convert($questions_string), "\n";
+            $questions_string = '';
+
+            # Print answers lines
+            print $out_fh "\t" . '\begin{reponses}', "\n";
+            for ( my $i = 0 ; $i < $num_answers ; $i++ ) {
+                print $out_fh "\t\t";
+                print $out_fh format_true( $answers_string[$i] )
+                  if $answers_eval[$i] eq '+';
+                print $out_fh format_false( $answers_string[$i] )
+                  if $answers_eval[$i] eq '-';
+                print $out_fh "\n";
+            }
+            print $out_fh "\t"
+              . '\end{reponses}' . "\n"
+              . '\end{questionmult}' . "\n\n";
+
+            # Update statistics
+            $stats->{questions}++;
+            $stats->{answers} += $num_answers;
+            foreach my $eval (@answers_eval) {
+                if ($eval eq '+') {
+                    $stats->{correct}++;
+                } else {
+                    $stats->{incorrect}++;
+                }
+            }
+
+            @answers_string = ();
+            @answers_eval   = ();
+        }
+    }
+
+    return $stats;
 }
 
 # Check Pandoc availability and version
@@ -223,4 +282,21 @@ sub format_true {
 sub format_false {
     my ($string) = @_;
     return '\mauvaise{', convert($string), '}';
+}
+
+# Display success message with statistics
+sub print_success {
+    my ($latex_path, $stats) = @_;
+
+    print GREEN, ">>> Conversion réussie !\n", RESET;
+    print "Fichier AMC-LaTeX généré : ", CYAN, $latex_path, RESET, "\n\n";
+
+    print BOLD, "Statistiques :\n", RESET;
+    print "  Questions traitées : ", YELLOW, $stats->{questions}, RESET, "\n";
+    print "  Réponses totales    : ", YELLOW, $stats->{answers}, RESET, "\n";
+    print "  Réponses correctes  : ", GREEN, $stats->{correct}, RESET, "\n";
+    print "  Réponses incorrectes: ", RED, $stats->{incorrect}, RESET, "\n";
+
+    my $avg_answers = $stats->{questions} > 0 ? sprintf("%.1f", $stats->{answers} / $stats->{questions}) : 0;
+    print "  Moyenne par question: ", BLUE, $avg_answers, RESET, " réponses\n";
 }
