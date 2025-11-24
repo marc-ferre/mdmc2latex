@@ -40,6 +40,6 @@ is(($? >> 8), 0, 'Sanitizer executed on sample image file');
 open $imgfh, '<', $img_sample or die "Can't open $img_sample: $!";
 my $img_content = do { local $/; <$imgfh> };
 close $imgfh;
-like($img_content, qr/\\includegraphics\[width=\\linewidth.*keepaspectratio\]/, 'Includegraphics width set to \\linewidth');
+like($img_content, qr/\\adjustbox\{max width=\\linewidth\}\{\\includegraphics(\[[^\]]*\])?\{images\/pic.png\}\}/, 'Includegraphics wrapped with adjustbox max width (no enlargement)');
 
 done_testing();

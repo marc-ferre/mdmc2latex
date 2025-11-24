@@ -88,6 +88,8 @@ perl test_mdmc2latex.pl
 Un outil de sanitization est disponible : `tools/sanitize_tex.pl`.
 Il permet de normaliser les fichiers `.tex` existants (remplacement de `\\def\\LTcaptype{...}`, ajustement automatique des `\\includegraphics` pour limiter la largeur, et wrapper `longtable`).
 
+Par défaut, la sanitation n'agrandira pas les images plus petites que la largeur maximale ; `tools/sanitize_tex.pl` enveloppe les images avec `\adjustbox{max width=\linewidth}{...}` afin de réduire les images sur-dimensionnées sans agrandir les plus petites.
+
 Exemples :
 
 ```sh
@@ -101,6 +103,7 @@ perl tools/sanitize_tex.pl --ltcaptype=table --dry-run path/to/dir
 Des exemples de fichiers `.mdmc` sont disponibles dans le dossier `examples/` pour tester le script.
 
 ### Sanitization via `mdmc2latex`
+
 Vous pouvez exécuter le sanitization automatiquement après la génération du `.tex` via `mdmc2latex.pl` :
 
 ```bash
