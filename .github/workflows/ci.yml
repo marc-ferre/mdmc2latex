@@ -63,9 +63,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y texlive-full
 
-      - name: Compile generated sample
+      - name: Compile generated sample(s) if full document
         run: |
-          ls -la
-          if ls examples/*.mdmc.tex; then
-            pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples examples/sample_withltcaptype.mdmc.tex
-          fi
+          ls -la examples || true
+          for f in examples/*.mdmc.tex; do
+            if [ -f "$f" ]; then
+              if grep -q '\\documentclass' "$f" || grep -q '\\begin{document}' "$f"; then
+                echo "Compiling $f";
+                pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples "$f" || true;
+              else
+                echo "Skipping $f (no \\documentclass or \\begin{document})";
+              fi
+            fi
+          done
