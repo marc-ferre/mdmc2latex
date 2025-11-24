@@ -14,7 +14,7 @@ my $prequestion_string   = '';
 my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
 my $a_bullet             = '   A.  ';
 
-my ( $q_first_id, $keep_md4docx, $help, $ltcaptype ) = ( '1', 0, 0, 'relax' );
+my ( $q_first_id, $keep_md4docx, $help, $ltcaptype ) = ( '1', 0, 0, 'table' );
 GetOptions(
     'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
     'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
@@ -39,7 +39,7 @@ my ( $md_base, $md_dir, $md_ext ) = fileparse( $md_path, ('.md') );
 my $latex_path = $md_dir . $md_base . '.tex';
 
 # Normalize ltcaptype option
-$ltcaptype = lc($ltcaptype // 'relax');
+$ltcaptype = lc($ltcaptype // 'table');
 if ($ltcaptype eq 'none') { $ltcaptype = 'relax'; }
 unless ($ltcaptype =~ /^(?:table|figure|relax)$/) {
     error_exit("Invalid --ltcaptype value '$ltcaptype'. Allowed: table|figure|relax|none");

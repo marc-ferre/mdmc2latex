@@ -66,7 +66,7 @@ sub test_ltcaptype_option {
     open my $fh, '<', $output_file or die "Can't open $output_file: $!";
     my $content = do { local $/; <$fh> };
     close $fh;
-    like($content, qr/\\def\\LTcaptype\{\\relax\}/, "Default replacement uses 'relax'");
+    like($content, qr/\\def\\LTcaptype\{table\}/, "Default replacement uses 'table'");
     unlink $output_file if -f $output_file;
 
     # With --ltcaptype=relax we should see \relax used
