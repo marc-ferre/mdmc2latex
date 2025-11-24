@@ -107,8 +107,8 @@ sub process_file {
             }
             else {
                 $q_into = 1;
-                # Use sequential numeric IDs instead of custom IDs to avoid LaTeX counter issues
-                print $out_fh '\begin{questionmult}{Q' . $q_id . '}', "\n";
+                my $custom_id = sanitize_id($1);
+                print $out_fh '\begin{questionmult}{' . $custom_id . '}', "\n";
                 $questions_string .= $prequestion_string . "\n"
                   unless $prequestion_string eq '';
             }
@@ -184,6 +184,7 @@ sub process_file {
 
                     @answers_string = ();
                     @answers_eval   = ();
+                    $q_id++;  # Increment question counter for error messages
                 }
             }
         }
@@ -239,6 +240,7 @@ sub process_file {
 
             @answers_string = ();
             @answers_eval   = ();
+            $q_id++;  # Increment question counter for error messages
         }
     }
 
@@ -300,4 +302,16 @@ sub print_success {
 
     my $avg_answers = $stats->{questions} > 0 ? sprintf("%.1f", $stats->{answers} / $stats->{questions}) : 0;
     print "  Moyenne par question: ", BLUE, $avg_answers, RESET, " réponses\n";
+}
+
+# Sanitize question ID for LaTeX compatibility
+sub sanitize_id {
+    my ($id) = @_;
+    # Replace non-alphanumeric characters (except underscore) with underscore
+    $id =~ s/[^a-zA-Z0-9_]/_/g;
+    # Ensure it starts with a letter (LaTeX counters prefer this)
+    if ($id =~ /^[^a-zA-Z]/) {
+        $id = 'Q' . $id;
+    }
+    return $id;
 }
