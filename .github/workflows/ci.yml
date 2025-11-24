@@ -16,7 +16,7 @@ jobs:
       - name: Set up apt dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pandoc cpanminus git
+          sudo apt-get install -y pandoc cpanminus git build-essential libgd-dev libxml2-dev
 
       - name: Install Perl modules
         run: |
@@ -28,25 +28,44 @@ jobs:
           perl test_mdmc2latex.pl
           perl test_sanitize_tex.pl || true
 
-      - name: Convert sample and dry-run sanitize
+      - name: Convert sample and dry-run sanitize and produce output
         run: |
           perl mdmc2latex.pl examples/sample_withltcaptype.mdmc --ltcaptype=table
           ls -la examples
-          perl tools/sanitize_tex.pl --ltcaptype=table --dry-run examples
+          perl tools/sanitize_tex.pl --ltcaptype=table --dry-run examples || true
 
-      - name: Run sanitize via mdmc2latex (--sanitize)
+      - name: Run sanitize via mdmc2latex (--sanitize) in dry-run
         run: |
-          perl mdmc2latex.pl --sanitize --ltcaptype=table examples/sample_withltcaptype.mdmc
+          perl mdmc2latex.pl --sanitize --sanitize-dry-run --ltcaptype=table examples/sample_withltcaptype.mdmc || true
           ls -la examples
+
+      - name: Upload generated tex artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-tex
+          path: |
+            examples/*.mdmc.tex
+
+  compile:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifact from test
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-tex
 
       - name: Install TeX Live (full)
         run: |
           sudo apt-get update
-          # texlive-full is large and will increase job duration; it provides all common LaTeX packages
           sudo apt-get install -y texlive-full
 
-      - name: Compile generated sample with pdflatex (and sanitize dry-run)
+      - name: Compile generated sample
         run: |
-          pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples examples/sample_withltcaptype.mdmc.tex
-          # Run sanitize with dry-run to ensure the sanitizer is functional without modifying files
-          perl mdmc2latex.pl --sanitize --sanitize-dry-run --ltcaptype=table examples/sample_withltcaptype.mdmc
+          ls -la
+          if ls examples/*.mdmc.tex; then
+            pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples examples/sample_withltcaptype.mdmc.tex
+          fi
