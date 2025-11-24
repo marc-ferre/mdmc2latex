@@ -107,7 +107,7 @@ sub process_file {
             }
             else {
                 $q_into = 1;
-                my $question_id = $q_id;
+                my $question_id = 'Q' . $q_id; # Prefix with letter to ensure LaTeX counter names are letters first
                 print $out_fh '\begin{questionmult}{' . $question_id . '}', "\n";
                 $questions_string .= $prequestion_string . "\n"
                   unless $prequestion_string eq '';
