@@ -15,134 +15,44 @@ my $a_bullet             = '   A.  ';
 
 my ( $q_first_id, $keep_md4docx, $help ) = ( '1', 0, 0 );
 GetOptions(
-    'fid=i' => \$q_first_id,      ### TO DO
-    'keep'  => \$keep_md4docx,    ### TO DO
+    'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
+    'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
     'help'  => \$help
 );
 
 # Print help
 if ( $help or not defined( $ARGV[0] ) ) {
-    print "Usage: $0 <Markdown QCM file> --fid <First question number>\n";
+    print_usage();
     exit;
 }
 
-# Manage in and out files
+# Validate input file
 my $md_path = $ARGV[0];
-open IN, '<', $md_path or die $!;
+unless ( -f $md_path && -r $md_path ) {
+    error_exit("Input file '$md_path' does not exist or is not readable.");
+}
+
+# Manage in and out files
 my ( $md_base, $md_dir, $md_ext ) = fileparse( $md_path, ('.md') );
 my $latex_path = $md_dir . $md_base . '.tex';
-open OUT, '>', $latex_path or die $!;
+
+# Open files safely
+my $in_fh = open_file('<', $md_path, "Cannot open input file '$md_path'");
+my $out_fh = open_file('>', $latex_path, "Cannot open output file '$latex_path'");
+
 my $date = localtime();
-print OUT format_comment(
+print $out_fh format_comment(
     "Converted from: $md_path on $date --- Marc FERRE. ALL RIGHTS RESERVED."),
   "\n\n";
 
-my ( $q_into, $a_into ) = ( 0, 0 );
-my ( $q_id, $a_id )     = ( 1, 0 );    ### TO DO
-my $questions_string = '';
-my @answers_string   = ();
-my @answers_eval     = ();
+# Parse and process the file
+process_file($in_fh, $out_fh);
 
-# Parse in file
-while ( my $line = <IN> ) {
-    chomp $line;
-    $line =~ s/^\s+|\s+$//g;           # Trim beginning and ending blanks
-
-    # ID line
-    if ( $line =~ m/^## \[(.+)\]/ ) {
-        if ($a_into) {
-            die
-"QCM formatting issue at question $q_id: closed answers expected\n";
-        }
-        else {
-            $q_into = 1;
-            print OUT '\begin{questionmult}{' . $1 . '}', "\n";
-            $questions_string .= $prequestion_string . "\n"
-              unless $prequestion_string eq '';
-        }
-    }
-
-    # Question line
-    elsif ( $line =~ m/^### (.+)$/ ) {
-        if ($q_into) {
-            $questions_string .= $1 . "\n";
-        }
-        else {
-            die
-"QCM formatting issue at question $q_id: opened question expected\n";
-        }
-    }
-
-    # Answers
-    elsif ( $line =~ m/^([\+-]) (.+)$/ ) {
-        $q_into                = 0;
-        $a_into                = 1;
-        $answers_eval[$a_id]   = $1;
-        $answers_string[$a_id] = $2;
-        $a_id++;
-    }
-
-    # Line(s) between ID and question
-    elsif ($q_into) {
-        if ($a_into) {
-            die
-"QCM formatting issue at question $q_id: closed answers expected\n";
-        }
-        else {
-            $questions_string .= $line . "\n";
-        }
-    }
-
-    # End of answers: print answers
-    elsif ( $line =~ m/^[_\s]*$/ ) {
-        if ($a_into) {
-            $a_into = 0;
-            $a_id   = 0;
-            if ( scalar(@answers_string) != 4 ) {
-                die
-"QCM formatting issue at question $q_id: 4 answers expected\n";
-            }
-            else {
-                # Print questions lines
-                print OUT convert($questions_string), "\n";
-                $questions_string = '';
-
-                # Print answers lines
-                print OUT "\t" . '\begin{reponses}', "\n";
-                for ( my $i = 0 ; $i < 4 ; $i++ ) {
-                    print OUT "\t\t";
-                    print OUT format_true( $answers_string[$i] )
-                      if $answers_eval[$i] eq '+';
-                    print OUT format_false( $answers_string[$i] )
-                      if $answers_eval[$i] eq '-';
-                    print OUT "\n";
-                }
-                print OUT "\t"
-                  . '\end{reponses}' . "\n"
-                  . '\end{questionmult}' . "\n\n";
-
-                @answers_string = ();
-                @answers_eval   = ();
-            }
-        }
-    }
-
-    # Heading line(s)
-    elsif ( not $q_into and !$a_into ) {
-        print OUT format_comment($line), "\n";
-    }
-
-    # Unexpected condition
-    else {
-        die "QCM formatting issue at question $q_id: unexpected condition\n";
-    }
-}
-close IN;
-close OUT;
+close $in_fh;
+close $out_fh;
 
 # Convert with pandoc
-pandoc or die "pandoc executable not found";             # Check executable
-pandoc->version > 1.12 or die "pandoc >= 1.12 required"; # Check minimum version
+check_pandoc();
 
 print ">>> QCM file successfully converted to AMC-LaTeX file: $latex_path\n";
 
@@ -150,6 +60,142 @@ print ">>> QCM file successfully converted to AMC-LaTeX file: $latex_path\n";
 ### FUNCTIONS ###
 #################
 
+# Print usage information
+sub print_usage {
+    print "Usage: $0 <Markdown QCM file> [--fid <First question number>]\n";
+    print "Options:\n";
+    print "  --fid=i    First question number (default: 1, not implemented)\n";
+    print "  --keep     Keep intermediate Markdown file (not implemented)\n";
+    print "  --help     Show this help message\n";
+}
+
+# Safe file opening
+sub open_file {
+    my ($mode, $path, $error_msg) = @_;
+    open my $fh, $mode, $path or error_exit("$error_msg: $!");
+    return $fh;
+}
+
+# Error handling with clean exit
+sub error_exit {
+    my ($msg) = @_;
+    warn "Error: $msg\n";
+    exit 1;
+}
+
+# Process the input file
+sub process_file {
+    my ($in_fh, $out_fh) = @_;
+
+    my ( $q_into, $a_into ) = ( 0, 0 );
+    my ( $q_id, $a_id )     = ( 1, 0 );
+    my $questions_string = '';
+    my @answers_string   = ();
+    my @answers_eval     = ();
+
+    while ( my $line = <$in_fh> ) {
+        chomp $line;
+        $line =~ s/^\s+|\s+$//g;    # Trim beginning and ending blanks
+
+        # ID line
+        if ( $line =~ m/^## \[(.+)\]/ ) {
+            if ($a_into) {
+                error_exit("QCM formatting issue at question $q_id: closed answers expected");
+            }
+            else {
+                $q_into = 1;
+                print $out_fh '\begin{questionmult}{' . $1 . '}', "\n";
+                $questions_string .= $prequestion_string . "\n"
+                  unless $prequestion_string eq '';
+            }
+        }
+
+        # Question line
+        elsif ( $line =~ m/^### (.+)$/ ) {
+            if ($q_into) {
+                $questions_string .= $1 . "\n";
+            }
+            else {
+                error_exit("QCM formatting issue at question $q_id: opened question expected");
+            }
+        }
+
+        # Answers
+        elsif ( $line =~ m/^([\+-]) (.+)$/ ) {
+            $q_into                = 0;
+            $a_into                = 1;
+            $answers_eval[$a_id]   = $1;
+            $answers_string[$a_id] = $2;
+            $a_id++;
+        }
+
+        # Line(s) between ID and question
+        elsif ($q_into) {
+            if ($a_into) {
+                error_exit("QCM formatting issue at question $q_id: closed answers expected");
+            }
+            else {
+                $questions_string .= $line . "\n";
+            }
+        }
+
+        # End of answers: print answers
+        elsif ( $line =~ m/^[_\s]*$/ ) {
+            if ($a_into) {
+                $a_into = 0;
+                $a_id   = 0;
+                my $num_answers = scalar(@answers_string);
+                if ( $num_answers < 2 || $num_answers > 4 ) {
+                    error_exit("QCM formatting issue at question $q_id: between 2 and 4 answers expected, got $num_answers");
+                }
+                else {
+                    # Print questions lines
+                    print $out_fh convert($questions_string), "\n";
+                    $questions_string = '';
+
+                    # Print answers lines
+                    print $out_fh "\t" . '\begin{reponses}', "\n";
+                    for ( my $i = 0 ; $i < $num_answers ; $i++ ) {
+                        print $out_fh "\t\t";
+                        print $out_fh format_true( $answers_string[$i] )
+                          if $answers_eval[$i] eq '+';
+                        print $out_fh format_false( $answers_string[$i] )
+                          if $answers_eval[$i] eq '-';
+                        print $out_fh "\n";
+                    }
+                    print $out_fh "\t"
+                      . '\end{reponses}' . "\n"
+                      . '\end{questionmult}' . "\n\n";
+
+                    @answers_string = ();
+                    @answers_eval   = ();
+                }
+            }
+        }
+
+        # Heading line(s)
+        elsif ( not $q_into and !$a_into ) {
+            print $out_fh format_comment($line), "\n";
+        }
+
+        # Unexpected condition
+        else {
+            error_exit("QCM formatting issue at question $q_id: unexpected condition");
+        }
+    }
+}
+
+# Check Pandoc availability and version
+sub check_pandoc {
+    unless (pandoc) {
+        error_exit("pandoc executable not found");
+    }
+    unless (pandoc->version >= 1.12) {
+        error_exit("pandoc >= 1.12 required, found " . pandoc->version);
+    }
+}
+
+# Convert Markdown to LaTeX using Pandoc
 sub convert {
     my ($in) = @_;
 
@@ -161,20 +207,20 @@ sub convert {
     return $out;
 }
 
+# Format as comment
 sub format_comment {
     my ($string) = @_;
-
     return "% $string";
 }
 
+# Format correct answer
 sub format_true {
     my ($string) = @_;
-
     return '\bonne{', convert($string), '}';
 }
 
+# Format incorrect answer
 sub format_false {
     my ($string) = @_;
-
     return '\mauvaise{', convert($string), '}';
 }
