@@ -65,35 +65,43 @@ foreach my $file (@files) {
     # Replace any existing defLTcaptype with desired value
     $content =~ s/\\def\\LTcaptype\{[^}]*\}/\\def\\LTcaptype\{$value\}/g;
 
-    # Ensure includegraphics is wrapped in adjustbox max width to avoid enlarging images
-    # Do not add width attribute; instead wrap with \adjustbox{max width=\linewidth}{...}
-    # Replace includegraphics[opts]{file} (no width present) -> \adjustbox{max width=\linewidth}{\includegraphics[opts]{file}}
-    $content =~ s{\\includegraphics(\[([^\]]*)\])?\{([^\}]+)\}}{
-        my ($opts, $optstr, $file) = ($1, $2, $3);
-        if (defined $optstr && $optstr =~ /(^|,)\s*width\s*=/) {
-            # width explicitly set: do not change
-            "\\includegraphics" . ($opts // "") . "{" . $file . "}";
-        } else {
-            "\\adjustbox{max width=\\linewidth}{\\includegraphics" . ($opts // "") . "{" . $file . "}}";
+    # Determine whether adjustbox is available or should be injected
+    my $has_adjustbox = ($content =~ /\\usepackage\{adjustbox\}/);
+    my $has_preamble = ($content =~ /\\documentclass[^\n]*\n/) || ($content =~ /\\begin\{document\}/);
+
+    # If adjustbox is not present but we have a preamble, inject it safely
+    if (!$has_adjustbox && $has_preamble) {
+        if ($content =~ s/(\\documentclass[^\n]*\n)/$1 . "\\usepackage{adjustbox}\\n"/e) {
+            print "Inserted \\usepackage{adjustbox} into preamble\n" if $verbose;
+            $has_adjustbox = 1;
         }
-    }egx;
+        elsif ($content =~ s/(\\begin\{document\})/"\\usepackage{adjustbox}\\n$1"/e) {
+            print "Inserted \\usepackage{adjustbox} before \\begin{document}\n" if $verbose;
+            $has_adjustbox = 1;
+        }
+    }
+
+    # Only wrap includegraphics if adjustbox will be available
+    if ($has_adjustbox) {
+        # Replace includegraphics[opts]{file} (no width present) -> \adjustbox{max width=\linewidth}{\includegraphics[opts]{file}}
+        $content =~ s{\\includegraphics(\[([^\]]*)\])?\{([^\}]+)\}}{
+            my ($opts, $optstr, $file) = ($1, $2, $3);
+            if (defined $optstr && $optstr =~ /(^|,)\s*width\s*=/) {
+                # width explicitly set: do not change
+                "\\includegraphics" . ($opts // "") . "{" . $file . "}";
+            } else {
+                "\\adjustbox{max width=\\linewidth}{\\includegraphics" . ($opts // "") . "{" . $file . "}}";
+            }
+        }egx;
+    }
 
     # Wrap longtable inside resizebox+minipage to avoid overflow
     # We insert a wrapper before \begin{longtable} and after \end{longtable}
     $content =~ s/\\begin\{longtable\}/\\resizebox{\\linewidth}{!}{\\begin{minipage}{\\linewidth}\\begin{longtable}/g;
     $content =~ s/\\end\{longtable\}/\\end{longtable}\\end{minipage}}/g;
 
-    # Ensure adjustbox package is loaded to use max width wrapper
-    unless ($content =~ /\\usepackage\{adjustbox\}/) {
-        if ($content =~ s/(\\documentclass[^\n]*\n)/$1 . "\\usepackage{adjustbox}\\n"/e) {
-            print "Inserted \\usepackage{adjustbox} into preamble\n" if $verbose;
-        }
-        else {
-            # fallback: prepend package at file start
-            $content = "\\usepackage{adjustbox}\n" . $content;
-            print "Prepended \\usepackage{adjustbox} as fallback\n" if $verbose;
-        }
-    }
+    # We already inject adjustbox only when it is safe (documentclass or begin{document}).
+    # No fallback injection is performed for snippets to avoid \usepackage before \documentclass issues.
 
     if ($dry_run) {
         print "--- Dry-run: not writing changes for $file\n";

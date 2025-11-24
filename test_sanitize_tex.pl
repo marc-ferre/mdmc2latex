@@ -30,16 +30,30 @@ close $fh;
 like($content, qr/\\def\\LTcaptype\{\\relax\}/, 'LTcaptype replaced with \\relax');
 like($content, qr/\\resizebox\{\\linewidth\}\{!\}\{\\begin\{minipage\}\{\\linewidth\}/, 'Longtable wrapped with resizebox + minipage');
 
-# Test includegraphics handling
-my $img_sample = "$tmp/sample_img.tex";
-open my $imgfh, '>', $img_sample or die "Can't write $img_sample: $!";
-print $imgfh "\\includegraphics[keepaspectratio]{images/pic.png}\\n";
+# Test includegraphics handling: ensure preamble injection/wrap for full documents
+my $img_sample_full = "$tmp/sample_img_full.tex";
+open my $imgfh, '>', $img_sample_full or die "Can't write $img_sample_full: $!";
+print $imgfh "\\documentclass{article}\\n\\begin{document}\\n\\includegraphics[keepaspectratio]{images/pic.png}\\n\\end{document}\\n";
 close $imgfh;
-system("perl tools/sanitize_tex.pl --ltcaptype=relax $img_sample > /dev/null 2>&1");
-is(($? >> 8), 0, 'Sanitizer executed on sample image file');
-open $imgfh, '<', $img_sample or die "Can't open $img_sample: $!";
+system("perl tools/sanitize_tex.pl --ltcaptype=relax $img_sample_full > /dev/null 2>&1");
+is(($? >> 8), 0, 'Sanitizer executed on sample image file (with preamble)');
+open $imgfh, '<', $img_sample_full or die "Can't open $img_sample_full: $!";
 my $img_content = do { local $/; <$imgfh> };
 close $imgfh;
+like($img_content, qr/\\usepackage\{adjustbox\}/, 'Adjustbox package inserted for full document');
 like($img_content, qr/\\adjustbox\{max width=\\linewidth\}\{\\includegraphics(\[[^\]]*\])?\{images\/pic.png\}\}/, 'Includegraphics wrapped with adjustbox max width (no enlargement)');
+
+# Test sanitizer does not inject \usepackage{adjustbox} on partial fragments without preamble
+my $snippet_file = "$tmp/snippet.tex";
+open my $sfh, '>', $snippet_file or die "Can't open $snippet_file: $!";
+print $sfh "\\includegraphics{images/pic.png}\n";
+close $sfh;
+system("perl tools/sanitize_tex.pl --ltcaptype=relax $snippet_file > /dev/null 2>&1");
+is(($? >> 8), 0, 'Sanitizer executed on snippet');
+open my $sfh2, '<', $snippet_file or die "Can't open $snippet_file: $!";
+my $snippet_content = do { local $/; <$sfh2> };
+close $sfh2;
+like($snippet_content, qr/\\includegraphics\{images\/pic.png\}/, 'Snippet: includegraphics unchanged');
+unlike($snippet_content, qr/\\usepackage\{adjustbox\}/, 'Snippet: adjustbox package not inserted');
 
 done_testing();
