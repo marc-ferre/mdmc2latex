@@ -83,4 +83,3 @@ Marc FERRE
 ## Licence
 
 Ce projet est sous licence CeCILL v2.1. Voir [LICENSE](LICENSE) pour plus de détails.
-
