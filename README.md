@@ -4,14 +4,14 @@ Convertisseur de fichiers Markdown QCM (.mdmc) vers LaTeX pour AMC (Auto Multipl
 
 ## Description
 
-Ce script Perl convertit des fichiers QCM au format Markdown personnalisé (.mdmc) en fichiers LaTeX compatibles avec AMC. Il utilise Pandoc pour la conversion Markdown vers LaTeX et génère des questions multiples avec réponses bonnes ou mauvaises.
+Ce script Perl convertit des fichiers QCM au format Markdown personnalisé (.mdmc) en fichiers LaTeX compatibles avec AMC. Il utilise Pandoc pour la conversion Markdown -> LaTeX et génère des blocs `questionmult`/`question` utilisables dans AMC.
 
 ## Installation
 
 1. Assurez-vous que Perl est installé sur votre système.
 2. Installez Pandoc (>= 1.12) : `brew install pandoc` (sur macOS) ou via votre gestionnaire de paquets.
 3. Installez le module Perl Pandoc : `cpan install Pandoc`.
-4. Téléchargez ou clonez ce dépôt.
+4. Clonez le dépôt.
 
 ## Utilisation
 
@@ -24,34 +24,33 @@ perl mdmc2latex.pl <fichier.mdmc> [--fid <numéro de première question>]
 - `--fid=i` : Numéro de la première question (par défaut 1, non implémenté)
 - `--keep` : Garder le fichier Markdown intermédiaire (non implémenté)
 - `--help` : Afficher l'aide
-- `--ltcaptype=<table|figure|relax|none>` : Valeur utilisée pour \def\LTcaptype{...} dans le LaTeX généré (par défaut `table`). `none` est équivalent à `relax` et peut provoquer des erreurs LaTeX dans certains modèles ; utilisez avec précaution.
+- `--ltcaptype=<table|figure|relax|none>` : Valeur utilisée pour `\def\LTcaptype{...}` dans le LaTeX généré (par défaut `table`). `none` équivaut à `relax` et peut provoquer des erreurs LaTeX selon le modèle ; utilisez avec précaution.
 
 ### Exemple
 
 ```bash
 perl mdmc2latex.pl sujet.mdmc --fid 10
+```
 
 ### Exemple d'utilisation de --ltcaptype
 
 ```sh
 perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # utilise \relax (évite incrémentation, peut provoquer des erreurs selon le modèle)
-perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # utilise \relax afin d'éviter tout compteur
 perl mdmc2latex.pl --ltcaptype=figure sujet.mdmc  # utilise 'figure'
-```
 ```
 
 Le script affiche des statistiques colorées à la fin de la conversion pour un meilleur suivi.
 
 ## Format du fichier Markdown (.mdmc)
 
-Le fichier d'entrée doit suivre un format spécifique :
+Le fichier d'entrée doit suivre un format simple :
 
 - **Titre de la question** : `## [ID de la question]`
 - **Texte de la question** : `### Texte de la question`
 - **Réponses** : `+ Bonne réponse` ou `- Mauvaise réponse`
 - **Séparation** : Ligne vide pour finir une question
 
-### Exemple de fichier .mdmc
+### Exemple d'un fichier .mdmc
 
 ```markdown
 ## [Q1]
@@ -69,7 +68,7 @@ Le fichier d'entrée doit suivre un format spécifique :
 - 6
 ```
 
-Le script génère un fichier .tex compatible avec AMC.
+Le script génère un fichier `.tex` compatible avec AMC.
 
 ## Dépendances
 
@@ -84,26 +83,26 @@ Pour exécuter les tests :
 
 ```bash
 perl test_mdmc2latex.pl
+```
 
-Un nouvel outil de *sanitization* est disponible: `tools/sanitize_tex.pl`.
+Un outil de sanitization est disponible : `tools/sanitize_tex.pl`.
 Il permet de normaliser les fichiers `.tex` existants (remplacement de `\\def\\LTcaptype{...}`, ajustement automatique des `\\includegraphics` pour limiter la largeur, et wrapper `longtable`).
 
-Exemples:
+Exemples :
+
 ```sh
 # Sanitise everything recursively in current directory
-perl tools/sanitize_tex.pl --ltcaptype=relax .
+perl tools/sanitize_tex.pl --ltcaptype=table .
 
-# Dry-run (preview) sanitise
+# Dry-run (preview) sanitize
 perl tools/sanitize_tex.pl --ltcaptype=table --dry-run path/to/dir
 ```
-```
 
-Des exemples de fichiers .mdmc sont disponibles dans le dossier `examples/` pour tester le script.
-
+Des exemples de fichiers `.mdmc` sont disponibles dans le dossier `examples/` pour tester le script.
 
 ## Correctifs récents
 
-- Le script remplace désormais `\\def\\LTcaptype{none}` (ou `0`) par la valeur choisie via l'option `--ltcaptype` (par défaut `relax`). Auparavant il utilisait `0`, ce qui provoquait une erreur LaTeX "No counter '0' defined". Cette modification évite la génération d'identifiants de compteur numériques invalides et les erreurs de compilation.
+- Le script remplace désormais `\\def\\LTcaptype{none}` (ou `0`) par la valeur choisie via l'option `--ltcaptype` (par défaut `table`). Avant, il utilisait `0`, ce qui provoquait une erreur LaTeX "No counter '0' defined". Cette modification évite la génération d'identifiants de compteur numériques invalides et les erreurs de compilation.
 
 ## Auteur
 
