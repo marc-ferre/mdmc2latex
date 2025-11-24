@@ -24,7 +24,7 @@ perl mdmc2latex.pl <fichier.mdmc> [--fid <numéro de première question>]
 - `--fid=i` : Numéro de la première question (par défaut 1, non implémenté)
 - `--keep` : Garder le fichier Markdown intermédiaire (non implémenté)
 - `--help` : Afficher l'aide
-- `--ltcaptype=<table|figure|relax|none>` : Valeur utilisée pour \def\LTcaptype{...} dans le LaTeX généré (par défaut `relax`). `none` est équivalent à `relax` et évite l'incrémentation d'un compteur.
+- `--ltcaptype=<table|figure|relax|none>` : Valeur utilisée pour \def\LTcaptype{...} dans le LaTeX généré (par défaut `table`). `none` est équivalent à `relax` et peut provoquer des erreurs LaTeX dans certains modèles ; utilisez avec précaution.
 
 ### Exemple
 
@@ -34,7 +34,7 @@ perl mdmc2latex.pl sujet.mdmc --fid 10
 ### Exemple d'utilisation de --ltcaptype
 
 ```sh
-perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # (défaut) utilise \relax (évite incrémente)
+perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # utilise \relax (évite incrémentation, peut provoquer des erreurs selon le modèle)
 perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # utilise \relax afin d'éviter tout compteur
 perl mdmc2latex.pl --ltcaptype=figure sujet.mdmc  # utilise 'figure'
 ```
@@ -84,6 +84,18 @@ Pour exécuter les tests :
 
 ```bash
 perl test_mdmc2latex.pl
+
+Un nouvel outil de *sanitization* est disponible: `tools/sanitize_tex.pl`.
+Il permet de normaliser les fichiers `.tex` existants (remplacement de `\\def\\LTcaptype{...}`, ajustement automatique des `\\includegraphics` pour limiter la largeur, et wrapper `longtable`).
+
+Exemples:
+```sh
+# Sanitise everything recursively in current directory
+perl tools/sanitize_tex.pl --ltcaptype=relax .
+
+# Dry-run (preview) sanitise
+perl tools/sanitize_tex.pl --ltcaptype=table --dry-run path/to/dir
+```
 ```
 
 Des exemples de fichiers .mdmc sont disponibles dans le dossier `examples/` pour tester le script.
