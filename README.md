@@ -89,6 +89,7 @@ Un outil de sanitization est disponible : `tools/sanitize_tex.pl`.
 Il permet de normaliser les fichiers `.tex` existants (remplacement de `\\def\\LTcaptype{...}`, ajustement automatique des `\\includegraphics` pour limiter la largeur, et wrapper `longtable`).
 
 Par défaut, la sanitation n'agrandira pas les images plus petites que la largeur maximale ; `tools/sanitize_tex.pl` enveloppe les images avec `\adjustbox{max width=\linewidth}{...}` afin de réduire les images sur-dimensionnées sans agrandir les plus petites.
+Le script injecte automatiquement `\\usepackage{adjustbox}` dans le préambule si le package n'est pas déjà chargé, ce qui permet l'usage de `\\adjustbox`.
 
 Exemples :
 
