@@ -107,14 +107,8 @@ sub process_file {
             }
             else {
                 $q_into = 1;
-                # Clean the question ID for LaTeX compatibility
-                my $question_id = $1;
-                $question_id =~ s/[^a-zA-Z0-9_-]/_/g;  # Replace invalid chars with underscores
-                $question_id =~ s/^[^a-zA-Z_]//g;      # Ensure it starts with letter or underscore
-                if ($question_id eq '') {
-                    $question_id = "Q$q_id";
-                }
-                print $out_fh '\begin{questionmult}{' . $question_id . '}', "\n";
+                # Use sequential numeric IDs instead of custom IDs to avoid LaTeX counter issues
+                print $out_fh '\begin{questionmult}{Q' . $q_id . '}', "\n";
                 $questions_string .= $prequestion_string . "\n"
                   unless $prequestion_string eq '';
             }
