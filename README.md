@@ -31,6 +31,8 @@ perl mdmc2latex.pl <fichier.mdmc> [--fid <numéro de première question>]
 perl mdmc2latex.pl sujet.mdmc --fid 10
 ```
 
+Le script affiche des statistiques colorées à la fin de la conversion pour un meilleur suivi.
+
 ## Format du fichier Markdown (.mdmc)
 
 Le fichier d'entrée doit suivre un format spécifique :
@@ -65,6 +67,7 @@ Le script génère un fichier .tex compatible avec AMC.
 - Perl
 - Pandoc (>= 1.12)
 - Module Perl : Pandoc
+- Module Perl : Term::ANSIColor (pour la sortie colorée)
 
 ## Tests
 
