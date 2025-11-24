@@ -307,10 +307,10 @@ sub print_success {
 # Sanitize question ID for LaTeX compatibility
 sub sanitize_id {
     my ($id) = @_;
-    # Replace non-alphanumeric characters (except underscore) with underscore
-    $id =~ s/[^a-zA-Z0-9_]/_/g;
-    # Ensure it starts with a letter (LaTeX counters prefer this)
-    if ($id =~ /^[^a-zA-Z]/) {
+    # Remove non-alphanumeric characters
+    $id =~ s/[^a-zA-Z0-9]//g;
+    # Ensure it starts with a letter (LaTeX counters require this)
+    if ($id =~ /^[^a-zA-Z]/ || $id eq '') {
         $id = 'Q' . $id;
     }
     return $id;
