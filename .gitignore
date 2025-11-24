@@ -9,3 +9,4 @@
 examples/*.mdmc.tex
 *.tex.bak
 *.bak
+*.amc
