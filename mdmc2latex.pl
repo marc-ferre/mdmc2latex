@@ -14,11 +14,12 @@ my $prequestion_string   = '';
 my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
 my $a_bullet             = '   A.  ';
 
-my ( $q_first_id, $keep_md4docx, $help ) = ( '1', 0, 0 );
+my ( $q_first_id, $keep_md4docx, $help, $ltcaptype ) = ( '1', 0, 0, 'relax' );
 GetOptions(
     'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
     'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
     'help'  => \$help
+    , 'ltcaptype=s' => \$ltcaptype
 );
 
 # Print help
@@ -36,6 +37,13 @@ unless ( -f $md_path && -r $md_path ) {
 # Manage in and out files
 my ( $md_base, $md_dir, $md_ext ) = fileparse( $md_path, ('.md') );
 my $latex_path = $md_dir . $md_base . '.tex';
+
+# Normalize ltcaptype option
+$ltcaptype = lc($ltcaptype // 'relax');
+if ($ltcaptype eq 'none') { $ltcaptype = 'relax'; }
+unless ($ltcaptype =~ /^(?:table|figure|relax)$/) {
+    error_exit("Invalid --ltcaptype value '$ltcaptype'. Allowed: table|figure|relax|none");
+}
 
 # Open files safely
 my $in_fh = open_file('<', $md_path, "Cannot open input file '$md_path'");
@@ -68,6 +76,7 @@ sub print_usage {
     print "Options:\n";
     print "  --fid=i    First question number (default: 1, not implemented)\n";
     print "  --keep     Keep intermediate Markdown file (not implemented)\n";
+    print "  --ltcaptype=<table|figure|relax|none>  LTcaptype to use in generated LaTeX (default: relax). 'none' is equivalent to 'relax' and avoids incrementing a counter.\n";
     print "  --help     Show this help message\n";
 }
 
@@ -264,7 +273,12 @@ sub convert {
     my $out = pandoc->convert( 'markdown' => 'latex', $in );
     chomp $out;
     $out =~ s/\\pandocbounded\{([^}]*)\}/$1/g;
-    $out =~ s/\\def\\LTcaptype\{none\}/\\def\\LTcaptype\{0\}/g;
+    # Normalize any LTcaptype value that could have been produced by pandoc
+    # Replace occurrences of 'none' or '0' by the user-specified $ltcaptype
+    my $lt_value_raw = $ltcaptype eq 'relax' ? '\\relax' : $ltcaptype;
+    my $lt_replacement = '\\def\\LTcaptype{' . $lt_value_raw . '}';
+    # Replace any current definition of LTcaptype (none|0|table|figure|...) by the selected value
+    $out =~ s/\\def\\LTcaptype\{[^}]*\}/$lt_replacement/g;
     $out =~ s/\x{2009}/ /g;
     return $out;
 }

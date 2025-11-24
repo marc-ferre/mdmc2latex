@@ -24,11 +24,20 @@ perl mdmc2latex.pl <fichier.mdmc> [--fid <numéro de première question>]
 - `--fid=i` : Numéro de la première question (par défaut 1, non implémenté)
 - `--keep` : Garder le fichier Markdown intermédiaire (non implémenté)
 - `--help` : Afficher l'aide
+- `--ltcaptype=<table|figure|relax|none>` : Valeur utilisée pour \def\LTcaptype{...} dans le LaTeX généré (par défaut `relax`). `none` est équivalent à `relax` et évite l'incrémentation d'un compteur.
 
 ### Exemple
 
 ```bash
 perl mdmc2latex.pl sujet.mdmc --fid 10
+
+### Exemple d'utilisation de --ltcaptype
+
+```sh
+perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # (défaut) utilise \relax (évite incrémente)
+perl mdmc2latex.pl --ltcaptype=relax sujet.mdmc   # utilise \relax afin d'éviter tout compteur
+perl mdmc2latex.pl --ltcaptype=figure sujet.mdmc  # utilise 'figure'
+```
 ```
 
 Le script affiche des statistiques colorées à la fin de la conversion pour un meilleur suivi.
@@ -78,6 +87,11 @@ perl test_mdmc2latex.pl
 ```
 
 Des exemples de fichiers .mdmc sont disponibles dans le dossier `examples/` pour tester le script.
+
+
+## Correctifs récents
+
+- Le script remplace désormais `\\def\\LTcaptype{none}` (ou `0`) par la valeur choisie via l'option `--ltcaptype` (par défaut `relax`). Auparavant il utilisait `0`, ce qui provoquait une erreur LaTeX "No counter '0' defined". Cette modification évite la génération d'identifiants de compteur numériques invalides et les erreurs de compilation.
 
 ## Auteur
 

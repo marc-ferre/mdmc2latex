@@ -1,0 +1,9 @@
+/.DS_Store
+# Ignore generated outputs
+*.mdmc.tex
+*.pdf
+*.aux
+*.log
+
+# Examples
+examples/*.mdmc.tex

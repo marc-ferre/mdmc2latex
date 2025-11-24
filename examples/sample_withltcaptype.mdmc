@@ -1,0 +1,14 @@
+## [Q1]
+### Question with a longtable caption type
+{
+\def\LTcaptype{none}
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+Col1 & Col2 \\
+\midrule
+Value1 & Value2 \\
+\end{longtable}
+}
+
++ Good answer
+- Bad answer
