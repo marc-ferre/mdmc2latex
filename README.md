@@ -100,6 +100,19 @@ perl tools/sanitize_tex.pl --ltcaptype=table --dry-run path/to/dir
 
 Des exemples de fichiers `.mdmc` sont disponibles dans le dossier `examples/` pour tester le script.
 
+### Sanitization via `mdmc2latex`
+Vous pouvez exécuter le sanitization automatiquement après la génération du `.tex` via `mdmc2latex.pl` :
+
+```bash
+perl mdmc2latex.pl --sanitize --ltcaptype=table examples/sujet.mdmc
+```
+
+Si vous souhaitez **prévisualiser** l’action de la sanitation sans modifier les fichiers, utilisez le flag `--sanitize-dry-run` :
+
+```bash
+perl mdmc2latex.pl --sanitize --sanitize-dry-run --ltcaptype=table examples/sujet.mdmc
+```
+
 ## Correctifs récents
 
 - Le script remplace désormais `\\def\\LTcaptype{none}` (ou `0`) par la valeur choisie via l'option `--ltcaptype` (par défaut `table`). Avant, il utilisait `0`, ce qui provoquait une erreur LaTeX "No counter '0' defined". Cette modification évite la génération d'identifiants de compteur numériques invalides et les erreurs de compilation.

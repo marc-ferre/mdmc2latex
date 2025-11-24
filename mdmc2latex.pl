@@ -14,13 +14,14 @@ my $prequestion_string   = '';
 my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
 my $a_bullet             = '   A.  ';
 
-my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize ) = ( '1', 0, 0, 'table', 0 );
+my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize, $sanitize_dryrun ) = ( '1', 0, 0, 'table', 0, 0 );
 GetOptions(
     'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
     'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
     'help'  => \$help
     , 'ltcaptype=s' => \$ltcaptype
     , 'sanitize' => \$sanitize
+    , 'sanitize-dry-run' => \$sanitize_dryrun
 );
 
 # Print help
@@ -71,7 +72,9 @@ print_success($latex_path, $stats);
 if ($sanitize) {
     my $sanitizer = 'tools/sanitize_tex.pl';
     if (-f $sanitizer) {
-        my $cmd = "perl $sanitizer --ltcaptype=$ltcaptype $latex_path";
+        my $cmd = "perl $sanitizer --ltcaptype=$ltcaptype";
+        if ($sanitize_dryrun) { $cmd .= ' --dry-run'; }
+        $cmd .= ' ' . $latex_path;
         print "Running sanitizer: $cmd\n";
         my $rc = system($cmd);
         if ($rc != 0) {
@@ -95,6 +98,7 @@ sub print_usage {
     print "  --keep     Keep intermediate Markdown file (not implemented)\n";
     print "  --ltcaptype=<table|figure|relax|none>  LTcaptype to use in generated LaTeX (default: table). 'none' is equivalent to 'relax' and avoids incrementing a counter.\n";
     print "  --sanitize  Run tools/sanitize_tex.pl on the generated .tex file (in-place).\n";
+    print "  --sanitize-dry-run  Run sanitizer in dry-run (preview) mode; no files are modified but sanitizer is executed.\n";
     print "  --help     Show this help message\n";
 }
 

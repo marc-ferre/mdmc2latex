@@ -39,11 +39,14 @@ jobs:
           perl mdmc2latex.pl --sanitize --ltcaptype=table examples/sample_withltcaptype.mdmc
           ls -la examples
 
-      - name: Install TeX Live
+      - name: Install TeX Live (full)
         run: |
           sudo apt-get update
-          sudo apt-get install -y texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended texlive-lang-french
+          # texlive-full is large and will increase job duration; it provides all common LaTeX packages
+          sudo apt-get install -y texlive-full
 
-      - name: Compile generated sample with pdflatex
+      - name: Compile generated sample with pdflatex (and sanitize dry-run)
         run: |
           pdflatex -interaction=nonstopmode -halt-on-error -output-directory=examples examples/sample_withltcaptype.mdmc.tex
+          # Run sanitize with dry-run to ensure the sanitizer is functional without modifying files
+          perl mdmc2latex.pl --sanitize --sanitize-dry-run --ltcaptype=table examples/sample_withltcaptype.mdmc

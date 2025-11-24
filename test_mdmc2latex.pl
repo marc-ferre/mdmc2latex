@@ -104,10 +104,32 @@ sub test_sanitize_flag {
     unlink "$output_file.bak" if -f "$output_file.bak";
 }
 
+sub test_sanitize_dry_run_flag {
+    my $test_file = 'examples/sample_withltcaptype.mdmc';
+    my $output_file = 'examples/sample_withltcaptype.mdmc.tex';
+
+    # Create base file using mdmc2latex
+    system("perl mdmc2latex.pl --ltcaptype=table $test_file > /dev/null 2>&1");
+    my $exit_code = $? >> 8;
+    is($exit_code, 0, "Base conversion OK for dry-run test");
+    ok(-f $output_file, "Output file exists before dry-run");
+
+    # Run with --sanitize and --sanitize-dry-run
+    system("perl mdmc2latex.pl --sanitize --sanitize-dry-run --ltcaptype=table $test_file > /dev/null 2>&1");
+    $exit_code = $? >> 8;
+    is($exit_code, 0, "Script executes successfully with --sanitize --sanitize-dry-run");
+    ok(-f $output_file, "Output file still exists after dry-run");
+    ok(!-f "$output_file.bak", "No backup file created since sanitizer ran in dry-run");
+
+    # Clean up
+    unlink $output_file if -f $output_file;
+}
+
 # Run tests
 test_script_execution();
 test_error_handling();
 test_ltcaptype_option();
 test_sanitize_flag();
+test_sanitize_dry_run_flag();
 
 done_testing();
