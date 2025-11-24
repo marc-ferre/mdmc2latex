@@ -107,7 +107,7 @@ sub process_file {
             }
             else {
                 $q_into = 1;
-                my $question_id = 'Q' . sprintf('%d', $q_id);
+                my $question_id = $q_id;
                 print $out_fh '\begin{questionmult}{' . $question_id . '}', "\n";
                 $questions_string .= $prequestion_string . "\n"
                   unless $prequestion_string eq '';
