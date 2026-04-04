@@ -1,7 +1,14 @@
 #!/opt/homebrew/bin/perl
 # Convert Markdown QCM to AMC-questionmult
+BEGIN {
+    binmode(STDOUT, ':encoding(UTF-8)');
+    binmode(STDERR, ':encoding(UTF-8)');
+}
 use strict;
 use warnings;
+use utf8;
+use Encode qw(decode FB_CROAK);
+use open qw(:std :encoding(UTF-8));
 use Getopt::Long qw(GetOptions);
 use File::Basename;
 use Pandoc qw(--wrap=none);    # check at first use
@@ -14,7 +21,7 @@ my $prequestion_string   = '';
 my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
 my $a_bullet             = '   A.  ';
 
-my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize, $sanitize_dryrun ) = ( '1', 0, 0, 'table', 0, 0 );
+my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize, $sanitize_dryrun, $normalize_spaces ) = ( '1', 0, 0, 'table', 0, 0, 1 );
 GetOptions(
     'fid=i' => \$q_first_id,      # First question ID (not implemented yet)
     'keep'  => \$keep_md4docx,    # Keep intermediate MD file (not implemented yet)
@@ -22,6 +29,7 @@ GetOptions(
     , 'ltcaptype=s' => \$ltcaptype
     , 'sanitize' => \$sanitize
     , 'sanitize-dry-run' => \$sanitize_dryrun
+    , 'normalize-spaces!' => \$normalize_spaces
 );
 
 # Print help
@@ -32,12 +40,16 @@ if ( $help or not defined( $ARGV[0] ) ) {
 
 # Validate input file
 my $md_path = $ARGV[0];
+if (defined $md_path && !utf8::is_utf8($md_path)) {
+    eval { $md_path = decode('UTF-8', $md_path, FB_CROAK); 1 }
+      or error_exit("Input path is not valid UTF-8: $ARGV[0]");
+}
 unless ( -f $md_path && -r $md_path ) {
     error_exit("Input file '$md_path' does not exist or is not readable.");
 }
 
 # Manage in and out files
-my ( $md_base, $md_dir, $md_ext ) = fileparse( $md_path, ('.md') );
+my ( $md_base, $md_dir, $md_ext ) = fileparse( $md_path, ('.mdmc', '.md') );
 my $latex_path = $md_dir . $md_base . '.tex';
 
 # Normalize ltcaptype option
@@ -99,13 +111,18 @@ sub print_usage {
     print "  --ltcaptype=<table|figure|relax|none>  LTcaptype to use in generated LaTeX (default: table). 'none' is equivalent to 'relax' and avoids incrementing a counter.\n";
     print "  --sanitize  Run tools/sanitize_tex.pl on the generated .tex file (in-place).\n";
     print "  --sanitize-dry-run  Run sanitizer in dry-run (preview) mode; no files are modified but sanitizer is executed.\n";
+    print "  --normalize-spaces / --no-normalize-spaces  Normalize Unicode spaces (U+2009/U+202F/U+00A0) in generated LaTeX (default: enabled).\n";
     print "  --help     Show this help message\n";
 }
 
 # Safe file opening
 sub open_file {
     my ($mode, $path, $error_msg) = @_;
-    open my $fh, $mode, $path or error_exit("$error_msg: $!");
+    my $open_mode = $mode;
+    if ($mode eq '<' || $mode eq '>') {
+        $open_mode .= ':encoding(UTF-8)';
+    }
+    open my $fh, $open_mode, $path or error_exit("$error_msg: $!");
     return $fh;
 }
 
@@ -301,8 +318,59 @@ sub convert {
     my $lt_replacement = '\\def\\LTcaptype{' . $lt_value_raw . '}';
     # Replace any current definition of LTcaptype (none|0|table|figure|...) by the selected value
     $out =~ s/\\def\\LTcaptype\{[^}]*\}/$lt_replacement/g;
-    $out =~ s/\x{2009}/ /g;
+    $out = normalize_includegraphics($out);
+    if ($normalize_spaces) {
+        $out = normalize_unicode_spaces($out);
+    }
     return $out;
+}
+
+# Ensure images fit within text width unless explicit sizing already exists.
+sub normalize_includegraphics {
+    my ($text) = @_;
+    return '' unless defined $text;
+
+    $text =~ s/\\includegraphics(?:\[([^\]]*)\])?\{([^}]*)\}/fit_includegraphics($1, $2)/eg;
+
+    return $text;
+}
+
+sub fit_includegraphics {
+    my ($opts, $path) = @_;
+    $opts = '' unless defined $opts;
+    $path = '' unless defined $path;
+
+    if ($opts =~ /(?:^|,)\s*(?:width|height|scale)\s*=/) {
+        return $opts ne ''
+          ? "\\includegraphics[$opts]{$path}"
+          : "\\includegraphics{$path}";
+    }
+
+    return $opts ne ''
+      ? "\\includegraphics[$opts,width=\\linewidth]{$path}"
+      : "\\includegraphics[width=\\linewidth]{$path}";
+}
+
+# Normalize Unicode spacing chars that break pdfLaTeX in AMC workflows.
+sub normalize_unicode_spaces {
+    my ($text) = @_;
+    return '' unless defined $text;
+
+    if (utf8::is_utf8($text)) {
+        # Character-oriented strings.
+        $text =~ s/[\x{2009}\x{202F}\x{00A0}\x{FFFD}]/ /g;
+    }
+    else {
+        # Byte-oriented UTF-8 strings (no internal Unicode flag).
+        # Replace UTF-8 byte sequences for U+2009, U+202F and U+00A0.
+        # Important: do not replace a raw 0xA0 byte, which would corrupt UTF-8
+        # letters such as "à" (C3 A0).
+        $text =~ s/\xE2\x80[\x89\xAF]/ /g;    # U+2009, U+202F
+        $text =~ s/\xC2\xA0/ /g;               # U+00A0
+        $text =~ s/\xEF\xBF\xBD/ /g;          # U+FFFD (replacement char)
+    }
+
+    return $text;
 }
 
 # Format as comment
@@ -326,6 +394,9 @@ sub format_false {
 # Display success message with statistics
 sub print_success {
     my ($latex_path, $stats) = @_;
+
+    # Re-assert UTF-8 output in case a loaded module changed stream layers.
+    binmode(STDOUT, ':encoding(UTF-8)');
 
     print GREEN, ">>> Conversion réussie !\n", RESET;
     print "Fichier AMC-LaTeX généré : ", CYAN, $latex_path, RESET, "\n\n";

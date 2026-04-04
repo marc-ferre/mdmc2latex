@@ -7,7 +7,7 @@ use Test::More;
 # Test basic functionality by running the script on a test file
 sub test_script_execution {
     my $test_file = 'examples/sample_valid.mdmc';
-    my $output_file = 'examples/sample_valid.mdmc.tex';
+    my $output_file = 'examples/sample_valid.tex';
 
     # Run the script
     system("perl mdmc2latex.pl $test_file > /dev/null 2>&1");
@@ -56,7 +56,7 @@ sub test_error_handling {
 
 sub test_ltcaptype_option {
     my $test_file = 'examples/sample_withltcaptype.mdmc';
-    my $output_file = 'examples/sample_withltcaptype.mdmc.tex';
+    my $output_file = 'examples/sample_withltcaptype.tex';
 
     # Default behavior should replace 'none' with 'table'
     system("perl mdmc2latex.pl $test_file > /dev/null 2>&1");
@@ -88,7 +88,7 @@ sub test_ltcaptype_option {
 
 sub test_sanitize_flag {
     my $test_file = 'examples/sample_withltcaptype.mdmc';
-    my $output_file = 'examples/sample_withltcaptype.mdmc.tex';
+    my $output_file = 'examples/sample_withltcaptype.tex';
 
     # Run mdmc2latex with --sanitize and default ltcaptype
     system("perl mdmc2latex.pl --sanitize --ltcaptype=table $test_file > /dev/null 2>&1");
@@ -106,7 +106,7 @@ sub test_sanitize_flag {
 
 sub test_sanitize_dry_run_flag {
     my $test_file = 'examples/sample_withltcaptype.mdmc';
-    my $output_file = 'examples/sample_withltcaptype.mdmc.tex';
+    my $output_file = 'examples/sample_withltcaptype.tex';
 
     # Create base file using mdmc2latex
     system("perl mdmc2latex.pl --ltcaptype=table $test_file > /dev/null 2>&1");
