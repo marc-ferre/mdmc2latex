@@ -44,7 +44,7 @@ jobs:
         with:
           name: generated-tex
           path: |
-            examples/*.mdmc.tex
+            examples/*.tex
 
   compile:
     runs-on: ubuntu-latest
@@ -66,7 +66,7 @@ jobs:
       - name: Compile generated sample(s) if full document
         run: |
           ls -la examples || true
-          for f in examples/*.mdmc.tex; do
+          for f in examples/*.tex; do
             if [ -f "$f" ]; then
               if grep -q '\\documentclass' "$f" || grep -q '\\begin{document}' "$f"; then
                 echo "Compiling $f";
