@@ -4,14 +4,13 @@ Convertisseur de fichiers Markdown QCM (.mdmc) vers LaTeX pour AMC (Auto Multipl
 
 ## Description
 
-Ce script Perl convertit des fichiers QCM au format Markdown personnalisé (.mdmc) en fichiers LaTeX compatibles avec AMC. Il utilise Pandoc pour la conversion Markdown -> LaTeX et génère des blocs `questionmult`/`question` utilisables dans AMC.
+Ce script Perl convertit des fichiers QCM au format Markdown personnalisé (.mdmc) en fichiers LaTeX compatibles avec AMC. Il utilise le binaire `pandoc` pour la conversion Markdown -> LaTeX et génère des blocs `questionmult`/`question` utilisables dans AMC.
 
 ## Installation
 
 1. Assurez-vous que Perl est installé sur votre système.
 2. Installez Pandoc (>= 1.12) : `brew install pandoc` (sur macOS) ou via votre gestionnaire de paquets.
-3. Installez le module Perl Pandoc : `cpan install Pandoc`.
-4. Clonez le dépôt.
+3. Clonez le dépôt.
 
 ## Utilisation
 
@@ -50,6 +49,14 @@ Le fichier d'entrée doit suivre un format simple :
 - **Réponses** : `+ Bonne réponse` ou `- Mauvaise réponse`
 - **Séparation** : Ligne vide pour finir une question
 
+### Règle harmonisée sur les propositions
+
+- **4 propositions** : le script ajoute automatiquement `Aucune de ces réponses n'est correcte.`
+- **5 propositions** : aucune proposition supplémentaire n'est ajoutée
+- **Moins de 4 ou plus de 5 propositions** : erreur explicite
+
+Si les 4 propositions initiales sont toutes fausses, l'option `Aucune de ces réponses n'est correcte.` devient elle-même la bonne réponse.
+
 ### Exemple d'un fichier .mdmc
 
 ```markdown
@@ -74,7 +81,6 @@ Le script génère un fichier `.tex` compatible avec AMC.
 
 - Perl
 - Pandoc (>= 1.12)
-- Module Perl : Pandoc
 - Module Perl : Term::ANSIColor (pour la sortie colorée)
 
 ## Tests
@@ -84,6 +90,8 @@ Pour exécuter les tests :
 ```bash
 perl test_mdmc2latex.pl
 ```
+
+Un petit corpus de spec est aussi fourni dans `tests/corpus/` pour verrouiller les cas `4 propositions` et `5 propositions`.
 
 Un outil de sanitization est disponible : `tools/sanitize_tex.pl`.
 Il permet de normaliser les fichiers `.tex` existants (remplacement de `\\def\\LTcaptype{...}`, ajustement automatique des `\\includegraphics` pour limiter la largeur, et wrapper `longtable`).

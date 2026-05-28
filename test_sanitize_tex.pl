@@ -8,7 +8,7 @@ use File::Copy;
 my $tmp = tempdir(CLEANUP => 1);
 my $sample = 'examples/sample_withltcaptype.mdmc';
 # Use the generated sample as baseline
-my $sample_tex = 'examples/sample_withltcaptype.mdmc.tex';
+my $sample_tex = 'examples/sample_withltcaptype.tex';
 
 # generate a simple .tex sample: reuse the existing mdmc2latex output as baseline
 system("perl mdmc2latex.pl $sample > /dev/null 2>&1");

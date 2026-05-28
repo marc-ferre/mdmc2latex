@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use Test::More;
 
+my $none_of_the_above = q{Aucune de ces réponses n'est correcte.};
+
 # Test basic functionality by running the script on a test file
 sub test_script_execution {
     my $test_file = 'examples/sample_valid.mdmc';
@@ -50,8 +52,7 @@ sub test_error_handling {
     system("perl mdmc2latex.pl $invalid_file > /dev/null 2>&1");
     my $exit_code = $? >> 8;
 
-    # Note: Current implementation doesn't fail on questions without answers, but we can test it runs
-    is($exit_code, 0, "Script handles invalid file gracefully (currently doesn't fail)");
+    isnt($exit_code, 0, "Script fails on invalid file with fewer than 4 answers");
 }
 
 sub test_ltcaptype_option {
@@ -84,6 +85,38 @@ sub test_ltcaptype_option {
     system("perl mdmc2latex.pl --ltcaptype=invalid $test_file > /dev/null 2>&1");
     $exit_code = $? >> 8;
     isnt($exit_code, 0, "Invalid ltcaptype value should cause error exit");
+}
+
+sub test_four_and_five_answer_rules {
+    my $four_input = 'tests/corpus/four_answers_all_false.mdmc';
+    my $four_output = 'tests/corpus/four_answers_all_false.tex';
+
+    system("perl mdmc2latex.pl $four_input > /dev/null 2>&1");
+    my $exit_code = $? >> 8;
+    is($exit_code, 0, "4-answer corpus converts successfully");
+    ok(-f $four_output, "4-answer corpus output file exists");
+
+    open my $fh, '<', $four_output or die "Can't open $four_output: $!";
+    my $content = do { local $/; <$fh> };
+    close $fh;
+
+    like($content, qr/\\bonne\{[^}]*Aucune de ces réponses n'est correcte\./, "4 answers all false => 'Aucune...' becomes correct");
+    unlink $four_output if -f $four_output;
+
+    my $five_input = 'tests/corpus/five_answers_no_extra.mdmc';
+    my $five_output = 'tests/corpus/five_answers_no_extra.tex';
+
+    system("perl mdmc2latex.pl $five_input > /dev/null 2>&1");
+    $exit_code = $? >> 8;
+    is($exit_code, 0, "5-answer corpus converts successfully");
+    ok(-f $five_output, "5-answer corpus output file exists");
+
+    open $fh, '<', $five_output or die "Can't open $five_output: $!";
+    $content = do { local $/; <$fh> };
+    close $fh;
+
+    unlike($content, qr/Aucune de ces réponses n'est correcte\./, "5 answers => no extra 'Aucune...' answer added");
+    unlink $five_output if -f $five_output;
 }
 
 sub test_sanitize_flag {
@@ -129,6 +162,7 @@ sub test_sanitize_dry_run_flag {
 test_script_execution();
 test_error_handling();
 test_ltcaptype_option();
+test_four_and_five_answer_rules();
 test_sanitize_flag();
 test_sanitize_dry_run_flag();
 

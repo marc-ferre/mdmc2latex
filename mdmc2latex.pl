@@ -11,14 +11,13 @@ use Encode qw(decode FB_CROAK);
 use open qw(:std :encoding(UTF-8));
 use Getopt::Long qw(GetOptions);
 use File::Basename;
-use Pandoc qw(--wrap=none);    # check at first use
-use Pandoc 1.12;               # check at compile time
-Pandoc->require(1.12);         # check at run time
+use IPC::Open3 qw(open3);
+use Symbol qw(gensym);
 use Term::ANSIColor qw(:constants);
 
 # Default strings (Markdown format)
 my $prequestion_string   = '';
-my $completemulti_string = 'Aucune des propositions ci-dessus n’est exacte.';
+my $completemulti_string = q{Aucune de ces réponses n'est correcte.};
 my $a_bullet             = '   A.  ';
 
 my ( $q_first_id, $keep_md4docx, $help, $ltcaptype, $sanitize, $sanitize_dryrun, $normalize_spaces ) = ( '1', 0, 0, 'table', 0, 0, 1 );
@@ -133,6 +132,60 @@ sub error_exit {
     exit 1;
 }
 
+sub flush_question {
+    my ($out_fh, $questions_string_ref, $answers_string_ref, $answers_eval_ref, $stats, $q_id) = @_;
+
+    my $num_answers = scalar(@{$answers_string_ref});
+    if ( $num_answers < 4 || $num_answers > 5 ) {
+        error_exit("QCM formatting issue at question $q_id: 4 or 5 answers expected, got $num_answers");
+    }
+
+    print $out_fh convert(${$questions_string_ref}), "\n";
+    ${$questions_string_ref} = '';
+
+    print $out_fh "\t" . '\begin{reponses}', "\n";
+
+    my $true_count = 0;
+    my $false_count = 0;
+    for ( my $i = 0 ; $i < $num_answers ; $i++ ) {
+        print $out_fh "\t\t";
+        if ( $answers_eval_ref->[$i] eq '+' ) {
+            print $out_fh format_true( $answers_string_ref->[$i] );
+            $true_count++;
+        }
+        else {
+            print $out_fh format_false( $answers_string_ref->[$i] );
+            $false_count++;
+        }
+        print $out_fh "\n";
+    }
+
+    if ( $num_answers == 4 ) {
+        print $out_fh "\t\t";
+        if ( $true_count == 0 ) {
+            print $out_fh format_true($completemulti_string);
+            $true_count++;
+        }
+        else {
+            print $out_fh format_false($completemulti_string);
+            $false_count++;
+        }
+        print $out_fh "\n";
+    }
+
+    print $out_fh "\t"
+      . '\end{reponses}' . "\n"
+      . '\end{questionmult}' . "\n\n";
+
+    $stats->{questions}++;
+    $stats->{answers} += $num_answers + ($num_answers == 4 ? 1 : 0);
+    $stats->{correct} += $true_count;
+    $stats->{incorrect} += $false_count;
+
+    @{$answers_string_ref} = ();
+    @{$answers_eval_ref}   = ();
+}
+
 # Process the input file
 sub process_file {
     my ($in_fh, $out_fh) = @_;
@@ -196,44 +249,8 @@ sub process_file {
             if ($a_into) {
                 $a_into = 0;
                 $a_id   = 0;
-                my $num_answers = scalar(@answers_string);
-                if ( $num_answers < 2 || $num_answers > 4 ) {
-                    error_exit("QCM formatting issue at question $q_id: between 2 and 4 answers expected, got $num_answers");
-                }
-                else {
-                    # Print questions lines
-                    print $out_fh convert($questions_string), "\n";
-                    $questions_string = '';
-
-                    # Print answers lines
-                    print $out_fh "\t" . '\begin{reponses}', "\n";
-                    for ( my $i = 0 ; $i < $num_answers ; $i++ ) {
-                        print $out_fh "\t\t";
-                        print $out_fh format_true( $answers_string[$i] )
-                          if $answers_eval[$i] eq '+';
-                        print $out_fh format_false( $answers_string[$i] )
-                          if $answers_eval[$i] eq '-';
-                        print $out_fh "\n";
-                    }
-                    print $out_fh "\t"
-                      . '\end{reponses}' . "\n"
-                      . '\end{questionmult}' . "\n\n";
-
-                    # Update statistics
-                    $stats->{questions}++;
-                    $stats->{answers} += $num_answers;
-                    foreach my $eval (@answers_eval) {
-                        if ($eval eq '+') {
-                            $stats->{correct}++;
-                        } else {
-                            $stats->{incorrect}++;
-                        }
-                    }
-
-                    @answers_string = ();
-                    @answers_eval   = ();
-                    $q_id++;  # Increment question counter for error messages
-                }
+                flush_question($out_fh, \$questions_string, \@answers_string, \@answers_eval, $stats, $q_id);
+                $q_id++;  # Increment question counter for error messages
             }
         }
 
@@ -252,44 +269,8 @@ sub process_file {
     if ($a_into) {
         $a_into = 0;
         $a_id   = 0;
-        my $num_answers = scalar(@answers_string);
-        if ( $num_answers < 2 || $num_answers > 4 ) {
-            error_exit("QCM formatting issue at question $q_id: between 2 and 4 answers expected, got $num_answers");
-        }
-        else {
-            # Print questions lines
-            print $out_fh convert($questions_string), "\n";
-            $questions_string = '';
-
-            # Print answers lines
-            print $out_fh "\t" . '\begin{reponses}', "\n";
-            for ( my $i = 0 ; $i < $num_answers ; $i++ ) {
-                print $out_fh "\t\t";
-                print $out_fh format_true( $answers_string[$i] )
-                  if $answers_eval[$i] eq '+';
-                print $out_fh format_false( $answers_string[$i] )
-                  if $answers_eval[$i] eq '-';
-                print $out_fh "\n";
-            }
-            print $out_fh "\t"
-              . '\end{reponses}' . "\n"
-              . '\end{questionmult}' . "\n\n";
-
-            # Update statistics
-            $stats->{questions}++;
-            $stats->{answers} += $num_answers;
-            foreach my $eval (@answers_eval) {
-                if ($eval eq '+') {
-                    $stats->{correct}++;
-                } else {
-                    $stats->{incorrect}++;
-                }
-            }
-
-            @answers_string = ();
-            @answers_eval   = ();
-            $q_id++;  # Increment question counter for error messages
-        }
+        flush_question($out_fh, \$questions_string, \@answers_string, \@answers_eval, $stats, $q_id);
+        $q_id++;  # Increment question counter for error messages
     }
 
     return $stats;
@@ -297,11 +278,15 @@ sub process_file {
 
 # Check Pandoc availability and version
 sub check_pandoc {
-    unless (pandoc) {
+    my $version_output = `pandoc --version 2>&1`;
+    my $exit_code = $? >> 8;
+    if ($exit_code != 0) {
         error_exit("pandoc executable not found");
     }
-    unless (pandoc->version >= 1.12) {
-        error_exit("pandoc >= 1.12 required, found " . pandoc->version);
+
+    my ($version) = $version_output =~ /pandoc\s+(\d+(?:\.\d+)+)/;
+    unless ($version && $version ge '1.12') {
+        error_exit("pandoc >= 1.12 required, found " . ($version // 'unknown'));
     }
 }
 
@@ -309,7 +294,7 @@ sub check_pandoc {
 sub convert {
     my ($in) = @_;
 
-    my $out = pandoc->convert( 'markdown' => 'latex', $in );
+    my $out = run_pandoc_convert($in);
     chomp $out;
     $out =~ s/\\pandocbounded\{([^}]*)\}/$1/g;
     # Normalize any LTcaptype value that could have been produced by pandoc
@@ -323,6 +308,33 @@ sub convert {
         $out = normalize_unicode_spaces($out);
     }
     return $out;
+}
+
+sub run_pandoc_convert {
+    my ($input) = @_;
+
+    my $stderr = gensym;
+    my $pid = open3(my $child_in, my $child_out, $stderr,
+        'pandoc', '-f', 'markdown', '-t', 'latex', '--wrap=none');
+
+    binmode($child_in, ':encoding(UTF-8)');
+    binmode($child_out, ':encoding(UTF-8)');
+    binmode($stderr, ':encoding(UTF-8)');
+
+    print {$child_in} $input;
+    close $child_in;
+
+    local $/;
+    my $stdout = <$child_out> // '';
+    my $stderr_text = <$stderr> // '';
+
+    waitpid($pid, 0);
+    my $exit_code = $? >> 8;
+    if ($exit_code != 0) {
+        error_exit("pandoc conversion failed: $stderr_text");
+    }
+
+    return $stdout;
 }
 
 # Ensure images fit within text width unless explicit sizing already exists.
